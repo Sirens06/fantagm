@@ -1,0 +1,387 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ---------------------------------------------------------------------------
+// Enum
+// ---------------------------------------------------------------------------
+
+enum Role {
+  P
+  D
+  C
+  A
+}
+
+enum PlayerStatus {
+  TITOLARE
+  BALLOTTAGGIO
+  RISERVA
+  FUORI_ROSA
+}
+
+enum Competition {
+  SERIE_A
+  SERIE_B
+  PREMIER_LEAGUE
+  LA_LIGA
+  BUNDESLIGA
+  LIGUE_1
+  EREDIVISIE
+  PRIMEIRA_LIGA
+  ALTRO
+}
+
+enum StatoStanza {
+  ATTESA // entrano le squadre
+  CORSO // dal primo lotto aperto
+  FINITA // chiusa a mano
+}
+
+enum StatoLotto {
+  APERTO // e' quello in asta adesso
+  CHIUSO // aggiudicato
+  ANNULLATO // chiamato e saltato, nessuno lo voleva
+}
+
+// ---------------------------------------------------------------------------
+// Anagrafica
+// ---------------------------------------------------------------------------
+
+model Player {
+  id   String @id @default(cuid())
+  name String
+
+  // Id della fonte esterna: e' la chiave che rende ripetibile il seed.
+  // Opzionale perche' all'inizio non ce l'hai per tutti; su Postgres piu'
+  // righe possono avere NULL anche con il vincolo @unique.
+  externalId String? @unique
+
+  birthDate        DateTime
+  role             Role
+  detailedPosition String // "ala", "punta", "trequartista"... la legge positionModifier()
+
+  // Moduli in cui il giocatore rende. Stringhe letterali ("3-5-2") perche'
+  // tacticalFit() ci fa split('-') sopra per ricavare la linea difensiva.
+  prFormation String[]
+
+  status            PlayerStatus @default(RISERVA)
+  isSuspended       Boolean      @default(false)
+  suspensionMatches Int          @default(0)
+  isPenaltyTaker    Boolean      @default(false)
+
+  officialPrice Int? // quotazione di listino, null finche' non esce
+
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  stats    SeasonStats[]
+  matches  MatchPerformance[]
+  injuries Injury[]
+
+  // Lato asta. Un giocatore del listone puo' essere chiamato e comprato in
+  // piu' aste diverse: sono relazioni, non campi sul giocatore.
+  lotti    Lotto[]
+  acquisti Acquisto[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, teamId])
+  @@index([teamId])
+  @@index([role])
+}
+
+model Team {
+  id         String  @id @default(cuid())
+  name       String  @unique
+  shortName  String
+  externalId String? @unique
+
+  reliability Int // 1-10, affidabilita' complessiva del club
+
+  // Proprieta' della squadra, non del singolo giocatore: aggiornarle costa
+  // 20 UPDATE invece di 600.
+  fixtureDiffNext8 Float   @default(3) // 1 = facile, 5 = durissimo
+  attackStrength   Float   @default(50) // 0-100
+  defenseStrength  Float   @default(50) // 0-100
+  isPromoted       Boolean @default(false)
+
+  players      Player[]
+  coach        Coach?
+  seasonStats  SeasonStats[]
+  homeFixtures Fixture[]     @relation("homeFixtures")
+  awayFixtures Fixture[]     @relation("awayFixtures")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Coach {
+  id   String @id @default(cuid())
+  name String
+
+  formation             String // modulo di riferimento
+  alternativeFormations String[] // moduli che alterna
+  rotationIndex         Float // 0-1, quanto ruota la rosa
+
+  isCurrent Boolean   @default(true)
+  sinceDate DateTime?
+
+  teamId String @unique
+  team   Team   @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Storico
+// ---------------------------------------------------------------------------
+
+model SeasonStats {
+  id          String      @id @default(cuid())
+  season      String // "2024-25"
+  competition Competition @default(SERIE_A)
+
+  appareances         Int
+  startingAppearances Int @default(0)
+  minutes             Int
+  goals               Int
+  assists             Int
+  yCards              Int
+  rCard               Int
+  penaltiesTaken      Int
+  penaltiesScored     Int
+
+  // Portiere e difensori
+  cleanSheets    Int @default(0)
+  goalsConceded  Int @default(0)
+  penaltiesSaved Int @default(0)
+
+  avgRating     Float
+  avRatingFanta Float
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  // La squadra in cui ha fatto questi numeri, che non e' per forza quella
+  // in cui gioca adesso.
+  teamId String
+  team   Team   @relation(fields: [teamId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([playerId, season, teamId])
+  @@index([teamId])
+}
+
+// Il rendimento giornata per giornata. E' cio' che SeasonStats non puo'
+// dire: la forma sono le ultime quattro o cinque partite, non la media di
+// dieci mesi. Con questa tabella piena, SeasonStats diventa derivabile.
+//
+// Puo' restare vuota: formaRecente() se ne accorge e ricade sul confronto
+// fra stagioni. Niente si rompe se non hai la fonte dati.
+model MatchPerformance {
+  id String @id @default(cuid())
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  season   String // "2024-25"
+  matchday Int // 1-38
+
+  played  Boolean @default(true)
+  minutes Int     @default(0)
+
+  // Null = senza voto. Diverso da zero: chi entra al 90' non ha preso 0,
+  // semplicemente non e' stato valutato.
+  rating      Float?
+  fantaRating Float?
+
+  goals         Int     @default(0)
+  assists       Int     @default(0)
+  yCard         Boolean @default(false)
+  rCard         Boolean @default(false)
+  penaltyScored Int     @default(0)
+  penaltyMissed Int     @default(0)
+
+  // Portieri
+  penaltySaved  Int     @default(0)
+  goalsConceded Int     @default(0)
+  cleanSheet    Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@unique([playerId, season, matchday])
+  @@index([playerId, season, matchday])
+}
+
+model Injury {
+  id             String    @id @default(cuid())
+  type           String
+  season         String // a quale stagione appartiene, per non pesare in eterno
+  date           DateTime
+  daysOut        Int
+  // Le giornate saltate contano piu' dei giorni: 20 giorni a giugno
+  // costano zero, a novembre costano quattro partite.
+  matchesMissed  Int       @default(0)
+  isActive       Boolean   @default(false)
+  expectedReturn DateTime?
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([playerId])
+}
+
+// ---------------------------------------------------------------------------
+// Asta
+//
+// Questa meta' vive una serata. Nasce quando crei una stanza, muore quando
+// l'asta finisce. Puoi averne dieci in parallelo senza che si disturbino.
+// Il punto di contatto con l'anagrafica e' Player: Lotto e Acquisto lo
+// puntano, nessuno dei due lo modifica mai.
+// ---------------------------------------------------------------------------
+
+model Stanza {
+  id     String      @id @default(cuid())
+  codice String      @unique // "AUC-K3P9XZ", quello che detti agli amici
+  nome   String
+  stato  StatoStanza @default(ATTESA)
+
+  budget Int @default(500)
+  slotP  Int @default(3)
+  slotD  Int @default(8)
+  slotC  Int @default(8)
+  slotA  Int @default(6)
+
+  // Chi possiede questo token conduce l'asta. Esce SOLO nella risposta di
+  // POST /api/asta/crea, mai nel GET dello stato.
+  adminToken String @default(cuid())
+
+  squadre  Squadra[]
+  lotti    Lotto[]
+  acquisti Acquisto[]
+
+  creataIl DateTime @default(now())
+}
+
+model Squadra {
+  id       String @id @default(cuid())
+  stanzaId String
+  stanza   Stanza @relation(fields: [stanzaId], references: [id], onDelete: Cascade)
+
+  nome String
+
+  // Il residuo, non l'iniziale. Parte uguale a stanza.budget e cala a ogni
+  // aggiudicazione: e' un dato calcolabile che teniamo pronto perche' il
+  // polling lo chiede ogni secondo e mezzo. Si aggiorna in un punto solo,
+  // la transazione di aggiudicazione.
+  budget Int
+
+  acquisti     Acquisto[]
+  rilanci      Rilancio[]
+  lottiInTesta Lotto[]    @relation("Leader")
+
+  // Il nome fa da password: chi rientra con lo stesso nome ritrova la sua
+  // squadra invece di essere respinto.
+  @@unique([stanzaId, nome])
+}
+
+model Lotto {
+  id       String @id @default(cuid())
+  stanzaId String
+  stanza   Stanza @relation(fields: [stanzaId], references: [id], onDelete: Cascade)
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id])
+
+  stato StatoLotto @default(APERTO)
+
+  // Regge tutta la concorrenza: si aggiorna con un updateMany condizionato
+  // (WHERE offerta < nuova), che Postgres esegue in modo atomico.
+  offerta  Int      @default(0)
+  leaderId String?
+  leader   Squadra? @relation("Leader", fields: [leaderId], references: [id])
+
+  apertoIl DateTime @default(now())
+
+  rilanci Rilancio[]
+
+  @@index([stanzaId, stato])
+  @@index([playerId])
+}
+
+model Rilancio {
+  id      String @id @default(cuid())
+  lottoId String
+  lotto   Lotto  @relation(fields: [lottoId], references: [id], onDelete: Cascade)
+
+  squadraId String
+  squadra   Squadra @relation(fields: [squadraId], references: [id], onDelete: Cascade)
+
+  importo Int
+  quando  DateTime @default(now())
+
+  // Append-only: si scrive e non si modifica mai.
+  @@index([lottoId, quando])
+  @@index([squadraId])
+}
+
+model Acquisto {
+  id       String @id @default(cuid())
+  stanzaId String
+  stanza   Stanza @relation(fields: [stanzaId], references: [id], onDelete: Cascade)
+
+  squadraId String
+  squadra   Squadra @relation(fields: [squadraId], references: [id], onDelete: Cascade)
+
+  playerId String
+  player   Player @relation(fields: [playerId], references: [id])
+
+  prezzo Int
+
+  // Copiato dal player: contare gli slot gira a ogni rilancio, e con la
+  // copia e' un filtro su un array invece di una join. In piu' conserva il
+  // ruolo che aveva al momento dell'asta.
+  ruolo Role
+
+  // Lo stesso giocatore non puo' essere assegnato due volte nella stessa
+  // asta. Il vincolo e' su [stanzaId, playerId], non su playerId da solo:
+  // lo stesso Lautaro puo' essere comprato in dieci aste diverse.
+  @@unique([stanzaId, playerId])
+  @@index([squadraId])
+  @@index([playerId])
+}
+
+model Fixture {
+  id       String   @id @default(cuid())
+  matchday Int
+  date     DateTime
+
+  homeTeamId String
+  awayTeamId String
+  homeTeam   Team   @relation("homeFixtures", fields: [homeTeamId], references: [id], onDelete: Cascade)
+  awayTeam   Team   @relation("awayFixtures", fields: [awayTeamId], references: [id], onDelete: Cascade)
+
+  homeGoals Int?
+  awayGoals Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Una squadra gioca al massimo una volta in casa e una fuori per giornata.
+  @@unique([matchday, homeTeamId])
+  @@unique([matchday, awayTeamId])
+  @@index([homeTeamId])
+  @@index([awayTeamId])
+}
