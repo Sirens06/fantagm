@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { StatoAsta } from "@/lib/types";
 
+import { leggiJson } from "@/lib/http";
 export function PannelloRilancio({
   codice,
   squadraId,
@@ -32,11 +33,11 @@ export function PannelloRilancio({
         }),
       }).then(async (res) => {
         if (res.ok) {
-          const data = await res.json();
+          const data = await leggiJson<StatoAsta>(res);
           onStato(data);
           setImporto("");
         } else {
-          const errorData = await res.json();
+          const errorData = await leggiJson<{ messaggio?: string }>(res);
           setErrore(errorData.messaggio || "Errore sconosciuto");
         }
       });

@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { toCoreCoach } from "@/lib/mappers";
 
-export async function GET() {
+import { rotta } from "@/lib/api";
+async function getHandler() {
   try {
     const coaches = await db.coach.findMany({
       where: { isCurrent: true },
@@ -15,3 +16,5 @@ export async function GET() {
     return NextResponse.json({ error: "Failed to load coaches" }, { status: 500 });
   }
 }
+
+export const GET = rotta(getHandler);

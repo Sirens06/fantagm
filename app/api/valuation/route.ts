@@ -4,6 +4,7 @@ import { toCorePlayer, playerInclude } from "@/lib/mappers";
 import { mappaAllenatori, errore } from "@/lib/asta";
 import { evaluatePlayer } from "@/lib/valuation";
 import { classifyTier } from "@/lib/tiers";
+import { rotta } from "@/lib/api";
 import {
   prezzoConsigliato,
   prezzoAncorato,
@@ -23,7 +24,7 @@ export const dynamic = "force-dynamic";
 // Il prezzo esce da pricing.ts, lo stesso modulo che usa la sala d'asta:
 // una sola verita' su quanto vale un giocatore. Il breakdown di
 // evaluatePlayer resta perche' spiega il perche', non il quanto.
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const playerId = req.nextUrl.searchParams.get("playerId");
   if (!playerId) return errore("playerid_mancante", "Serve il parametro playerId", 400);
 
@@ -65,3 +66,5 @@ export async function GET(req: NextRequest) {
     breakdown: coach ? evaluatePlayer(player, coach) : null,
   });
 }
+
+export const GET = rotta(getHandler);

@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { costruisciStato, errore } from "@/lib/asta";
 
+import { rotta } from "@/lib/api";
 // Senza questo Vercel mette in cache la risposta e tutti vedono l'asta
 // congelata. Non e' opzionale.
 export const dynamic = "force-dynamic";
 
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
+async function getHandler(_req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
   const { codice } = await ctx.params;
   const stato = await costruisciStato(codice);
 
@@ -17,3 +18,5 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ codice: st
     headers: { "Cache-Control": "no-store, max-age=0" },
   });
 }
+
+export const GET = rotta(getHandler);

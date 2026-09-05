@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 
+import { leggiJson } from "@/lib/http";
 /** Quello che risponde POST /api/listone/importa. */
 type Esito = {
   creati: number;
@@ -40,7 +41,7 @@ export default function DatiPage() {
         method: "POST",
         body: formData,
       });
-      const data = await response.json();
+      const data = await leggiJson<Esito & { messaggio?: string }>(response);
       if (!response.ok) {
         throw new Error("Errore: " + data.messaggio);
       }

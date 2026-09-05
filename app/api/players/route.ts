@@ -2,7 +2,8 @@ import {NextResponse} from "next/server";
 import {db} from "@/lib/db";
 import {toCorePlayer, playerInclude} from "@/lib/mappers";
 
-export async function GET(){
+import { rotta } from "@/lib/api";
+async function getHandler(){
     try {
         const players = await db.player.findMany({
             include: playerInclude, // team + stats + injuries in un colpo solo, gia' ordinati per stagione
@@ -14,3 +15,5 @@ export async function GET(){
         return NextResponse.json({"error": "Failed to load players"}, {status: 500});
     }
 }
+
+export const GET = rotta(getHandler);

@@ -3,10 +3,11 @@ import { db } from "@/lib/db";
 import { parseListone, normalizza } from "@/lib/listone";
 import { errore } from "@/lib/asta";
 
+import { rotta } from "@/lib/api";
 // 600 giocatori richiedono tempo: il default di 10s non basta.
 export const maxDuration = 60;
 
-export async function POST(req: NextRequest) {
+async function postHandler(req: NextRequest) {
   const form = await req.formData().catch(() => null);
   const file = form?.get("file");
 
@@ -87,3 +88,5 @@ export async function POST(req: NextRequest) {
     colonneTrovate: esito.colonneTrovate,
   });
 }
+
+export const POST = rotta(postHandler);

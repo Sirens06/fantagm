@@ -4,7 +4,8 @@ import { toCoreCoach, toCorePlayer, playerInclude } from "@/lib/mappers";
 import { suggestTrades } from "@/lib/tradeAdvisor";
 
 
-export async function GET(req: NextRequest) { // we need req param when we have to read data from the request itself, like the playerId in the query string (?playerId=...)
+import { rotta } from "@/lib/api";
+async function getHandler(req: NextRequest) { // we need req param when we have to read data from the request itself, like the playerId in the query string (?playerId=...)
     const playerId = req.nextUrl.searchParams.get("playerId");
     if (!playerId) {
         return NextResponse.json({ "error": "playerId required" }, { status: 400 });
@@ -39,3 +40,5 @@ export async function GET(req: NextRequest) { // we need req param when we have 
         return NextResponse.json({ error: "Failed to suggest trades" }, { status: 500 });
     }
 }
+
+export const GET = rotta(getHandler);

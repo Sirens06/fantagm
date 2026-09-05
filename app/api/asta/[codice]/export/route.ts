@@ -3,9 +3,10 @@ import * as XLSX from "xlsx";
 import { db } from "@/lib/db";
 import { errore } from "@/lib/asta";
 
+import { rotta } from "@/lib/api";
 const ORDINE = { P: 0, D: 1, C: 2, A: 3 } as const;
 
-export async function GET(_req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
+async function getHandler(_req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
   const { codice } = await ctx.params;
 
   const stanza = await db.stanza.findUnique({
@@ -61,3 +62,5 @@ export async function GET(_req: NextRequest, ctx: { params: Promise<{ codice: st
     },
   });
 }
+
+export const GET = rotta(getHandler);

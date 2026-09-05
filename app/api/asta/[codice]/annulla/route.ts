@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { costruisciStato, errore } from "@/lib/asta";
 
+import { rotta } from "@/lib/api";
 // Chiamo un giocatore, nessuno lo vuole, passo al prossimo.
-export async function POST(req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
+async function postHandler(req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
   const { codice } = await ctx.params;
   const { adminToken } = await req.json().catch(() => ({}));
 
@@ -21,3 +22,5 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ codice: st
 
   return NextResponse.json(await costruisciStato(codice));
 }
+
+export const POST = rotta(postHandler);

@@ -5,6 +5,7 @@ import { mappaAllenatori } from "@/lib/asta";
 import { prezzoConsigliato, scarto, fasciaDa } from "@/lib/pricing";
 import type { GiocatoreDTO, Role } from "@/lib/types";
 
+import { rotta } from "@/lib/api";
 export const dynamic = "force-dynamic";
 
 // Il listone con il prezzo consigliato. Lo usa il conduttore per cercare chi
@@ -13,7 +14,7 @@ export const dynamic = "force-dynamic";
 //   /api/listone?q=lauta&ruolo=A&stanzaId=...&take=60
 //
 // Con stanzaId marca chi e' gia' stato venduto in quell'asta.
-export async function GET(req: NextRequest) {
+async function getHandler(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const q = sp.get("q")?.trim() ?? "";
   const ruolo = sp.get("ruolo") as Role | null;
@@ -89,3 +90,5 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json(dto, { headers: { "Cache-Control": "no-store" } });
 }
+
+export const GET = rotta(getHandler);

@@ -12,6 +12,7 @@ import { CronologiaRilanci } from "@/components/CronologiaRilanci";
 import { GrigliaSquadre } from "@/components/GrigliaSquadre";
 import { IndicatoreLinea } from "@/components/IndicatoreLinea";
 
+import { leggiJson } from "@/lib/http";
 // Fuori dal componente: useSyncExternalStore si riscrive all'evento solo se
 // questa funzione resta la stessa. Dichiarata dentro, ne creeresti una nuova
 // a ogni render e React si iscriverebbe daccapo ogni volta.
@@ -101,7 +102,7 @@ export default function AuctionRoom() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ nomeSquadra }),
       });
-      const dati = await res.json();
+      const dati = await leggiJson<{ squadraId: string; rientro: boolean; messaggio?: string }>(res);
 
       if (!res.ok) {
         setErroreEntrata(dati.messaggio || "Errore sconosciuto");

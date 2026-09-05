@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { GiocatoreDTO, StatoAsta } from "@/lib/types";
 
+import { leggiJson } from "@/lib/http";
 /**
  * I comandi di chi conduce l'asta.
  *
@@ -55,7 +56,7 @@ export function PannelloAdmin({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ adminToken, ...corpo }),
       });
-      const dati = await res.json();
+      const dati = await leggiJson<StatoAsta & { messaggio?: string }>(res);
 
       if (res.ok) {
         onStato(dati);

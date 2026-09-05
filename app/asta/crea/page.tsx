@@ -4,6 +4,7 @@ import type { Role } from "@/lib/types";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { leggiJson } from "@/lib/http";
 const RUOLI: Role[] = ["P", "D", "C", "A"];
 const RUOLI_NOMI: Record<Role, string> = {
   P: "Portiere",
@@ -59,7 +60,7 @@ export default function CreaAsta() {
           maxSquadre: parseInt(squadreMax, 10) || 8,
         }),
       });
-      const data = await response.json();
+      const data = await leggiJson<Creata & { messaggio?: string }>(response);
       if (!response.ok) {
         throw new Error(
           data?.messaggio || "Errore durante la creazione dell'asta",

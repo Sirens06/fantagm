@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { auctionRoom, nuovoAdminToken, errore } from "@/lib/asta";
 
-export async function POST(req: NextRequest) {
+import { rotta } from "@/lib/api";
+async function postHandler(req: NextRequest) {
   const body = await req.json().catch(() => ({}));
 
   const nome = String(body.nome ?? "Asta").trim().slice(0, 60) || "Asta";
@@ -55,3 +56,5 @@ export async function POST(req: NextRequest) {
     adminToken: stanza.adminToken,
   });
 }
+
+export const POST = rotta(postHandler);

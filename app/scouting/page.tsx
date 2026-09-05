@@ -7,6 +7,7 @@ import { evaluatePlayer } from "@/lib/valuation";
 import { classifyTier } from "@/lib/tiers";
 import { PlayerCard } from "@/components/PlayerCard";
 
+import { leggiJson } from "@/lib/http";
 const tierList: {name: Tier, color: string}[] = [
   { name: "certezza", color: "bg-green-500" },
   { name: "equilibrio", color: "bg-blue-500" },
@@ -40,8 +41,8 @@ export default function ScoutingPage() {
   });
   useEffect(() => {
     Promise.all([
-      fetch("/api/players").then((res) => res.json() as Promise<Player[]>),
-      fetch("/api/coaches").then((res) => res.json() as Promise<Coach[]>),
+      fetch("/api/players").then((res) => leggiJson<Player[]>(res)),
+      fetch("/api/coaches").then((res) => leggiJson<Coach[]>(res)),
     ]).then(([players, coaches]) => {
       const coachesMap = new Map(
         coaches.map((coach) => [coach.team.name, coach]),

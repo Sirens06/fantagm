@@ -6,6 +6,7 @@ import { projectSeason } from "@/lib/projection";
 import { prezzoConsigliato } from "@/lib/pricing";
 import type { Role } from "@/lib/types";
 
+import { rotta } from "@/lib/api";
 export const dynamic = "force-dynamic";
 
 // La rosa di una squadra, con i punti attesi a fine stagione.
@@ -15,7 +16,7 @@ export const dynamic = "force-dynamic";
 // Non serve un modello nuovo: durante l'asta la rosa SONO gli acquisti.
 // Per una rosa ipotetica fuori dall'asta c'e' gia' POST /api/projection,
 // che accetta una lista di id.
-export async function GET(req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
+async function getHandler(req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
   const { codice } = await ctx.params;
   const squadraId = req.nextUrl.searchParams.get("squadraId");
   if (!squadraId) return errore("squadraid_mancante", "Serve il parametro squadraId", 400);
@@ -78,3 +79,5 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ codice: str
     puntiAttesi: proiezione.total,
   });
 }
+
+export const GET = rotta(getHandler);

@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { costruisciStato, errore } from "@/lib/asta";
 import type { Role } from "@/lib/types";
 
-export async function POST(req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
+import { rotta } from "@/lib/api";
+async function postHandler(req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
   const { codice } = await ctx.params;
   const { squadraId, importo } = await req.json().catch(() => ({}));
 
@@ -97,3 +98,5 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ codice: st
 
   return NextResponse.json(await costruisciStato(codice));
 }
+
+export const POST = rotta(postHandler);

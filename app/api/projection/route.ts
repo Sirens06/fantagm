@@ -3,7 +3,8 @@ import { db } from "@/lib/db";
 import { toCoreCoach, toCorePlayer, playerInclude } from "@/lib/mappers";
 import { projectSeason } from "@/lib/projection";
 
-export async function POST(req: NextRequest) {
+import { rotta } from "@/lib/api";
+async function postHandler(req: NextRequest) {
   const { playerIds } = await req.json();
 
   if (!Array.isArray(playerIds)) {
@@ -36,3 +37,5 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "Failed to project" }, { status: 500 });
   }
 }
+
+export const POST = rotta(postHandler);

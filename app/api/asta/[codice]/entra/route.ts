@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { errore } from "@/lib/asta";
 
-export async function POST(req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
+import { rotta } from "@/lib/api";
+async function postHandler(req: NextRequest, ctx: { params: Promise<{ codice: string }> }) {
   const { codice } = await ctx.params;
   const body = await req.json().catch(() => ({}));
 
@@ -73,3 +74,5 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ codice: st
     rientro: false,
   });
 }
+
+export const POST = rotta(postHandler);
