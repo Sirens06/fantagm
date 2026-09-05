@@ -8,7 +8,20 @@ import type { Coach, GiocatoreDTO, Role, StatoAsta, SquadraDTO } from "./types";
 // in una stanza rumorosa.
 const nanoid = customAlphabet("ABCDEFGHJKLMNPQRSTUVWXYZ23456789", 6);
 
-export const nuovoCodice = () => `AUC-${nanoid()}`;
+export const auctionRoom = () => `AUC-${nanoid()}`;
+
+/**
+ * Il token di chi conduce l'asta.
+ *
+ * Criterio opposto al codice stanza: quello va dettato a voce, questo va solo
+ * copiato — quindi non serve leggibile, serve non indovinabile. Non c'e'
+ * login: chi ha questo token puo' aggiudicare al posto tuo.
+ *
+ * randomUUID() usa il generatore crittografico di Node, a differenza di
+ * Math.random() che e' prevedibile se qualcuno ci si mette d'impegno.
+ */
+export const nuovoAdminToken = () => crypto.randomUUID();
+
 
 /** Gli allenatori in carica, indicizzati per nome squadra. Serve al motore
  *  prezzi: il fit tattico dipende dal modulo di chi allena adesso. */
@@ -120,6 +133,7 @@ export async function costruisciStato(codice: string): Promise<StatoAsta | null>
     stato: stanza.stato,
     budget: stanza.budget,
     slotMax,
+    maxSquadre: stanza.maxSquadre,
     lotto,
     squadre,
     aggiornatoIl: new Date().toISOString(),

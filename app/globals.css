@@ -1,8 +1,9 @@
-@import "tailwindcss";
-@import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter&display=swap');
+/* Punto d'ingresso degli stili. Tutto il resto sta in fantagm.css.
 
-@theme inline{
-  --font-display: 'Bebas Neue', sans-serif;
-  --font-body: 'Inter', sans-serif;
-  --color-primary: 
-}
+   Qui non ci sono @import da CDN: i Google Fonts non caricavano dentro la
+   webview mobile e il testo restava nero su fondo nero. Se un giorno serve
+   un carattere non di sistema, va servito dal nostro dominio (next/font lo
+   scarica in build e lo serve da qui) con un fallback dichiarato. */
+
+@import "tailwindcss";
+@import "./fantagm.css";

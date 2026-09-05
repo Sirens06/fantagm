@@ -35,9 +35,36 @@ export async function POST(req: NextRequest, ctx: { params: Promise<{ codice: st
     return errore("asta_finita", "Questa asta e' gia' terminata", 400);
   }
 
-  const squadra = await db.squadra.create({
-    data: { stanzaId: stanza.id, nome, budget: stanza.budget },
-  });
+  // Il tetto e la creazione stanno nella stessa transazione, e serializzata:
+  // otto persone inquadrano il QR nello stesso momento, e con il conteggio
+  // fuori dalla transazione due di loro lo leggerebbero entrambe a 7 e
+  // creerebbero la nona squadra. Postgres qui fa fallire la seconda.
+  //
+  // Nota l'ordine: il rientro di chi c'e' gia' e' passato piu' sopra e non
+  // arriva mai qui. A stanza piena chi ricarica il telefono rientra sempre.
+  let squadra;
+  try {
+    squadra = await db.$transaction(
+      async (tx) => {
+        const quante = await tx.squadra.count({ where: { stanzaId: stanza.id } });
+        if (quante >= stanza.maxSquadre) return null;
+        return tx.squadra.create({
+          data: { stanzaId: stanza.id, nome, budget: stanza.budget },
+        });
+      },
+      { isolationLevel: "Serializable" }
+    );
+  } catch {
+    return errore("stanza_affollata", "Troppe registrazioni insieme, riprova", 409);
+  }
+
+  if (!squadra) {
+    return errore(
+      "stanza_piena",
+      `La stanza e' al completo: ci sono gia' ${stanza.maxSquadre} squadre`,
+      409
+    );
+  }
 
   return NextResponse.json({
     squadraId: squadra.id,

@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Stanza" ALTER COLUMN "slotA" SET DEFAULT 6;

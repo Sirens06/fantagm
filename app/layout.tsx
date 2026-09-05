@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import "./globals.css";
-import HP from "./page"
 
 export const metadata: Metadata = {
   title: "Fantagm",
@@ -12,10 +11,10 @@ export default function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
-      <body className="font-body bg-gray-900 text-white min-h-screen flex flex-col">
+    <html lang="it">
+      <body className="font-body bg-campo text-gesso min-h-screen flex flex-col">
         <nav className="sticky top-0">
-          <div className="flex justify-between items-center bg-gray-800 p-4">
+          <div className="flex justify-between items-center gap-3 overflow-x-auto border-b border-riga bg-superficie px-3 py-2 text-xs text-nebbia">
             <Link href="/">Home</Link>
             <Link href="/trade">Scambi suggeriti</Link>
             <Link href="/auction">Asta</Link>

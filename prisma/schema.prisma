@@ -258,15 +258,22 @@ model Stanza {
   nome   String
   stato  StatoStanza @default(ATTESA)
 
-  budget Int @default(500)
+  budget Int @default(1000)
   slotP  Int @default(3)
   slotD  Int @default(8)
   slotC  Int @default(8)
   slotA  Int @default(6)
 
+  // Quante squadre possono registrarsi. Chi arriva dopo viene respinto: il
+  // codice stanza gira su WhatsApp e in un QR, quindi prima o poi lo apre
+  // qualcuno che non gioca. Il rientro di chi c'e' gia' non conta mai
+  // contro questo tetto.
+  maxSquadre Int @default(8)
+
   // Chi possiede questo token conduce l'asta. Esce SOLO nella risposta di
   // POST /api/asta/crea, mai nel GET dello stato.
-  adminToken String @default(cuid())
+  // Niente @default: lo generi tu quando crei la stanza.
+  adminToken String
 
   squadre  Squadra[]
   lotti    Lotto[]

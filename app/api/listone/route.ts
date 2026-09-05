@@ -17,13 +17,27 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
   const q = sp.get("q")?.trim() ?? "";
   const ruolo = sp.get("ruolo") as Role | null;
-  const stanzaId = sp.get("stanzaId");
-  const take = Math.min(200, Math.max(1, Number(sp.get("take")) || 60));
+  // 600 e' il listone intero: la pagina che lo sfoglia lo chiede in un colpo
+  // solo. Il default resta piccolo perche' la ricerca del banditore vuole
+  // dieci righe, non seicento.
+  const take = Math.min(600, Math.max(1, Number(sp.get("take")) || 60));
+  const skip = Math.max(0, Number(sp.get("skip")) || 0);
 
-  const stanza = stanzaId
-    ? await db.stanza.findUnique({ where: { id: stanzaId }, select: { budget: true } })
-    : null;
-  const budget = stanza?.budget ?? 500;
+  // La stanza si indica per id o per codice: il browser conosce solo il
+  // secondo, che e' quello che sta nell'URL della sala d'asta.
+  const idParam = sp.get("stanzaId");
+  const codiceParam = sp.get("codice");
+  const stanza =
+    idParam || codiceParam
+      ? await db.stanza.findUnique({
+          where: idParam ? { id: idParam } : { codice: codiceParam! },
+          select: { id: true, budget: true },
+        })
+      : null;
+  const stanzaId = stanza?.id ?? null;
+  // Senza stanza i prezzi si calcolano sul budget di lega: il consigliato
+  // scala col budget, quindi la stessa cifra su 500 varrebbe il doppio.
+  const budget = stanza?.budget ?? 1000;
 
   const players = await db.player.findMany({
     where: {
@@ -40,6 +54,7 @@ export async function GET(req: NextRequest) {
     include: playerInclude,
     orderBy: [{ officialPrice: "desc" }, { name: "asc" }],
     take,
+    skip,
   });
 
   const venduti = stanzaId

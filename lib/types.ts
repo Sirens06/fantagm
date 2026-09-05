@@ -199,6 +199,8 @@ export type StatoAsta = {
   stato: StatoStanza;
   budget: number;
   slotMax: Record<Role, number>;
+  /** Quante squadre entrano in tutto. squadre.length dice quante ce ne sono. */
+  maxSquadre: number;
   lotto: LottoDTO | null;
   squadre: SquadraDTO[];
   aggiornatoIl: string;

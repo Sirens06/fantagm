@@ -1,0 +1,1365 @@
+/* ───────────────────────────────────────────────────────────────────────
+   FantaGM — Design System
+   Versione 1.0 · Serie A 2026/27
+
+   Direzione visiva: "tabellone e lavagna tattica".
+   Fondo verde campo notturno, righe di gesso, giallo segnaletico
+   come unico accento forte, numeri tabulari da scoreboard.
+
+   Portato a Tailwind v4. Il documento di consegna descrive la v3
+   (tailwind.config.ts, @tailwind base/components/utilities): qui non
+   servono, i token stanno in @theme e il foglio e' importato da
+   globals.css subito dopo `@import "tailwindcss"`.
+
+   Nessuna dipendenza esterna: nessun font da CDN, nessun framework
+   caricato a runtime. Funziona offline e dentro una webview.
+
+   Indice
+     01  Token
+     02  Ponte Tailwind (@theme)
+     03  Base e tipografia
+     04  Layout
+     05  Tabellone
+     06  Navigazione
+     07  Pannelli
+     08  Controlli di forma
+     09  Bottoni
+     10  Tag e pastiglie
+     11  Tabelle
+     12  Sala d'asta
+     13  Il campo (rosa)
+     14  Alternative
+     15  Scouting
+     16  Proiezione
+     17  Scambi
+     18  Squadre e stagione
+     19  Utilita'
+     20  Stati e accessibilita'
+   ─────────────────────────────────────────────────────────────────────── */
+
+
+/* ─── 01 · TOKEN ────────────────────────────────────────────────────────
+   Unica fonte di verita'. Il blocco @theme qui sotto non ripete i valori,
+   li rilegge da qui: per ritematizzare l'app basta cambiare questo blocco.
+   L'unica eccezione ammessa altrove sono i colori sociali delle squadre,
+   che arrivano dai dati e finiscono in uno style inline sullo stemma.
+   ─────────────────────────────────────────────────────────────────────── */
+:root {
+  /* — Campo notturno: le quattro profondita' di fondo — */
+  --pitch-950: #061310;   /* fondo pagina */
+  --pitch-900: #0a1c16;   /* pannelli */
+  --pitch-800: #10291f;   /* elementi dentro i pannelli, campi */
+  --pitch-700: #17362a;   /* stati attivi */
+
+  /* — Gesso: la scala del testo, tre livelli e non uno di piu' — */
+  --chalk: #f1f5ee;       /* titoli, testo primario */
+  --chalk-dim: #9bafa2;   /* corpo del testo */
+  --chalk-faint: #6b8177; /* etichette, testo terziario */
+  --line: rgba(241, 245, 238, 0.1);         /* bordi normali */
+  --line-strong: rgba(241, 245, 238, 0.22); /* bordi in evidenza */
+
+  /* — Segnale: usato con parsimonia, e' l'unico accento forte — */
+  --signal: #f5d30a;      /* prezzi, valori chiave, elemento attivo */
+  --signal-deep: #b99f00;
+  --coral: #ff5c4d;       /* errori, rischio, perdita */
+  --sky: #5bc8e8;         /* informazione neutra */
+  --grass: #4ade80;       /* conferme, guadagno */
+
+  /* — Spazio: scala 4px. Se ti serve 18px stai risolvendo il problema
+       sbagliato. — */
+  --s1: 0.25rem;  --s2: 0.5rem;   --s3: 0.75rem;  --s4: 1rem;
+  --s5: 1.25rem;  --s6: 1.5rem;   --s8: 2rem;     --s10: 2.5rem;  --s12: 3rem;
+
+  /* — Raggi: quasi nessuno. E' un tabellone, non una carta di credito — */
+  --r-sm: 3px; --r-md: 6px; --r-lg: 10px; --r-full: 9999px;
+
+  /* — Tipo: i due estremi sono fluidi, il resto e' fisso — */
+  --t-micro: 0.6875rem;  /* 11px · etichette in maiuscoletto */
+  --t-xs: 0.75rem;       /* 12px */
+  --t-sm: 0.875rem;      /* 14px · testo di tabella */
+  --t-base: 1rem;        /* 16px · corpo */
+  --t-lg: 1.125rem;      /* 18px */
+  --t-xl: 1.375rem;      /* 22px */
+  --t-2xl: 1.75rem;      /* 28px */
+  --t-display: clamp(2rem, 7vw, 3.25rem);  /* titoli di pagina */
+  --t-score: clamp(2.5rem, 11vw, 4rem);    /* offerta in asta, proiezione */
+
+  /* — Famiglie: solo font di sistema —
+     Google Fonts non carica dentro alcune webview mobile: il testo
+     resterebbe nero su nero. Il carattere lo diamo col peso e la
+     spaziatura, non con la famiglia. */
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+
+  /* — Transizioni — */
+  --fast: 0.15s; --base: 0.18s; --slow: 0.32s;
+}
+
+
+/* ─── 02 · PONTE TAILWIND ───────────────────────────────────────────────
+   Espone i token del blocco 01 come utility (bg-pitch-900, text-signal,
+   border-chalk/20, font-mono, text-score, rounded-lg…).
+
+   In coda ci sono gli alias italiani gia' usati nei componenti scritti
+   prima di questo foglio: campo, superficie, riga, gesso, nebbia, rosa,
+   affare, troppo, e le fasce. Restano validi e ora puntano alla palette
+   nuova, cosi' le pagine esistenti cambiano pelle senza toccare il JSX.
+   ─────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-pitch-950: var(--pitch-950);
+  --color-pitch-900: var(--pitch-900);
+  --color-pitch-800: var(--pitch-800);
+  --color-pitch-700: var(--pitch-700);
+
+  --color-chalk: var(--chalk);
+  --color-chalk-dim: var(--chalk-dim);
+  --color-chalk-faint: var(--chalk-faint);
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-signal: var(--signal);
+  --color-signal-deep: var(--signal-deep);
+  --color-coral: var(--coral);
+  --color-sky: var(--sky);
+  --color-grass: var(--grass);
+
+  /* Alias di compatibilita' — stessi nomi di prima, colori nuovi. */
+  --color-campo: var(--pitch-950);
+  --color-superficie: var(--pitch-900);
+  --color-riga: var(--line);
+  --color-gesso: var(--chalk);
+  --color-nebbia: var(--chalk-dim);
+  --color-gold: var(--signal);
+  /* Il rosa Gazzetta esce di scena: nel sistema nuovo il prezzo e'
+     giallo, e il giallo e' l'unico accento. Il nome resta per non
+     rompere i componenti che lo usano. */
+  --color-rosa: var(--signal);
+  --color-affare: var(--grass);
+  --color-troppo: var(--coral);
+  /* Fasce: sky per equilibrio, giallo per scommessa, neutro per esotico
+     (il tag-ghost del documento). */
+  --color-equilibrio: var(--sky);
+  --color-scommessa: var(--signal);
+  --color-esotico: var(--chalk-dim);
+  /* Le stesse cinque fasce come fondo pieno, per PlayerCard. */
+  --color-tier-certezza: var(--grass);
+  --color-tier-equilibrio: var(--sky);
+  --color-tier-scommessa: var(--signal);
+  --color-tier-esotico: var(--chalk-dim);
+  --color-tier-sconsigliato: var(--coral);
+
+  /* Famiglie. font-display e font-body restano validi e puntano al
+     sistema: il carattere lo fanno il peso e il tracking, vedi la
+     regola .font-display nel blocco 03. */
+  --font-sans: var(--sans);
+  --font-mono: var(--mono);
+  --font-display: var(--sans);
+  --font-body: var(--sans);
+
+  /* Solo i corpi che Tailwind non ha gia'. La scala text-xs…text-2xl
+     resta quella di Tailwind: sovrascriverla toglierebbe le interlinee
+     accoppiate e sposterebbe le pagine gia' scritte. Dentro i componenti
+     di questo foglio valgono comunque i --t-* del blocco 01. */
+  --text-micro: 0.6875rem;
+  --text-display: clamp(2rem, 7vw, 3.25rem);
+  --text-score: clamp(2.5rem, 11vw, 4rem);
+
+  --radius-sm: 3px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
+
+  /* Allinea il punto di rottura di Tailwind a quello del design: da qui
+     lg:grid-cols-2 e @media(min-width:820px) scattano insieme. */
+  --breakpoint-lg: 820px;
+}
+
+
+/* ─── 03 · BASE E TIPOGRAFIA ────────────────────────────────────────────
+   I titoli sono maiuscoli, pesantissimi e con tracking negativo.
+   Le etichette sono monospaziate, minuscole e con tracking ampio.
+   E' il contrasto fra i due che regge l'identita', non il carattere.
+   ─────────────────────────────────────────────────────────────────────── */
+@layer base {
+  * { -webkit-tap-highlight-color: transparent; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background-color: var(--pitch-950);
+    /* Righe di gesso piu' un alone verde in alto. Sono sul body e non su
+       uno pseudo-elemento fisso: cosi' non serve un wrapper con z-index
+       per tenerle sotto al contenuto. */
+    background-image:
+      repeating-linear-gradient(90deg,
+        transparent 0 79px,
+        rgba(241, 245, 238, 0.022) 79px 80px),
+      radial-gradient(ellipse 90% 55% at 50% -10%,
+        rgba(74, 222, 128, 0.07), transparent 70%);
+    background-attachment: fixed;
+    color: var(--chalk-dim);
+    font-family: var(--sans);
+    font-size: var(--t-base);
+    line-height: 1.55;
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1 {
+    font-size: var(--t-display);
+    font-weight: 800;
+    color: var(--chalk);
+    letter-spacing: -0.035em;
+    line-height: 0.98;
+    text-transform: uppercase;
+  }
+  h2 { font-size: var(--t-xl);   font-weight: 700; color: var(--chalk); letter-spacing: -0.02em; }
+  h3 { font-size: var(--t-base); font-weight: 700; color: var(--chalk); letter-spacing: -0.01em; }
+  h4 { font-size: var(--t-sm);   font-weight: 700; color: var(--chalk); }
+}
+
+@layer components {
+  /* font-display non e' piu' una famiglia a se': e' il trattamento da
+     titolo. Sta nel layer components, quindi qualunque utility (font-normal,
+     tracking-normal, normal-case) continua a vincere. */
+  .font-display {
+    font-weight: 800;
+    letter-spacing: -0.035em;
+    line-height: 1;
+    text-transform: uppercase;
+  }
+
+  /* Occhiello: l'etichetta sopra ogni titolo di pagina. */
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--signal);
+    font-weight: 600;
+  }
+  .eyebrow-dim { color: var(--chalk-faint); }
+
+  /* Sottotitolo di pagina. Limitato in larghezza per la leggibilita'. */
+  .lede {
+    color: var(--chalk-dim);
+    font-size: var(--t-base);
+    max-width: 62ch;
+    margin-top: var(--s3);
+  }
+
+  .dim { color: var(--chalk-faint); font-size: var(--t-sm); }
+
+  /* Numeri: sempre tabulari, cosi' le colonne non ballano quando i
+     valori cambiano durante l'asta. */
+  .num {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+  }
+
+
+/* ─── 04 · LAYOUT ─────────────────────────────────────────────────────── */
+
+  .wrap {
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: var(--s5) var(--s4) var(--s12);
+  }
+  @media (min-width: 820px) {
+    .wrap { padding: var(--s8) var(--s6) var(--s12); }
+  }
+
+  /* Intestazione di sezione: occhiello, titolo, sottotitolo. */
+  .head { margin-bottom: var(--s8); }
+  .head .eyebrow { display: block; margin-bottom: var(--s3); }
+
+  /* Griglie. Mobile-first: una colonna, poi si aprono. */
+  .cols { display: grid; gap: var(--s4); }
+  .cols-2 { grid-template-columns: 1fr; }
+  .cols-auto { grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); }
+
+  @media (min-width: 820px) {
+    .cols-2 { grid-template-columns: 1fr 1fr; }
+    .cols-2.wide-left { grid-template-columns: 1.35fr 1fr; }
+  }
+
+  .row-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--s2);
+  }
+
+
+/* ─── 05 · TABELLONE ──────────────────────────────────────────────────
+   Barra fissa in alto: identita', budget, barra di consumo, navigazione.
+   Segue l'utente in ogni sezione.
+   ─────────────────────────────────────────────────────────────────────── */
+
+  .board {
+    position: sticky;
+    top: 0;
+    z-index: 60;
+    background: linear-gradient(180deg, var(--pitch-900), rgba(10, 28, 22, 0.96));
+    border-bottom: 1px solid var(--line-strong);
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .board-top {
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+    padding: var(--s3) var(--s4);
+    max-width: 1180px;
+    margin: 0 auto;
+  }
+
+  /* Marchio */
+  .mark { display: flex; align-items: baseline; gap: var(--s2); flex-shrink: 0; }
+  .mark b {
+    color: var(--chalk);
+    font-weight: 800;
+    letter-spacing: -0.04em;
+    font-size: var(--t-lg);
+    text-transform: uppercase;
+  }
+  .mark span {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    color: var(--signal);
+    letter-spacing: 0.14em;
+  }
+
+  /* Statistiche a destra */
+  .board-stats { display: flex; gap: var(--s5); margin-left: auto; align-items: center; }
+  .bstat { text-align: right; line-height: 1.15; }
+  .bstat .k {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--chalk-faint);
+    display: block;
+  }
+  .bstat .v {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--t-lg);
+    font-weight: 700;
+    color: var(--chalk);
+  }
+  .bstat .v.hot { color: var(--signal); }
+
+  /* Su schermo stretto resta solo il residuo: e' l'unico numero che
+     serve davvero mentre rilanci. */
+  @media (max-width: 640px) {
+    .bstat.hide-sm { display: none; }
+  }
+
+  /* Barra del budget: si accorcia mentre spendi, rossa sotto il 20%. */
+  .budget-bar { height: 3px; background: rgba(241, 245, 238, 0.08); overflow: hidden; }
+  .budget-fill {
+    height: 100%;
+    background: var(--signal);
+    transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .budget-fill.low { background: var(--coral); }
+
+
+/* ─── 06 · NAVIGAZIONE ────────────────────────────────────────────────
+   Scoped a .board: nel foglio originale era il selettore nudo `nav`, che
+   qui avrebbe riscritto anche la navigazione del layout.
+   ─────────────────────────────────────────────────────────────────────── */
+
+  .board nav {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    max-width: 1180px;
+    margin: 0 auto;
+    padding: 0 var(--s2);
+    scrollbar-width: none;
+  }
+  .board nav::-webkit-scrollbar { display: none; }
+
+  .nav-btn {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--chalk-faint);
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 600;
+    padding: var(--s3) var(--s4);
+    min-height: 46px;              /* bersaglio tattile */
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--base), border-color var(--base);
+  }
+  .nav-btn:hover { color: var(--chalk-dim); }
+  .nav-btn.on { color: var(--signal); border-bottom-color: var(--signal); }
+
+  /* Le viste del prototipo a pagina singola. In Next il cambio schermata
+     lo fa il router: .view serve solo se copi il markup del documento. */
+  .view { display: none; }
+  .view.on { display: block; animation: rise var(--slow) cubic-bezier(0.2, 0.8, 0.3, 1); }
+  .rise { animation: rise var(--slow) cubic-bezier(0.2, 0.8, 0.3, 1); }
+
+
+/* ─── 07 · PANNELLI ───────────────────────────────────────────────────── */
+
+  .panel {
+    background: var(--pitch-900);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    padding: var(--s5);
+  }
+  .panel + .panel { margin-top: var(--s4); }
+
+  /* Variante evidenziata: una sola per pagina. */
+  .panel-signal {
+    border-color: rgba(245, 211, 10, 0.28);
+    background: linear-gradient(180deg, rgba(245, 211, 10, 0.05), var(--pitch-900));
+  }
+
+  .panel-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    gap: var(--s3);
+    margin-bottom: var(--s4);
+    padding-bottom: var(--s3);
+    border-bottom: 1px solid var(--line);
+  }
+
+
+/* ─── 08 · CONTROLLI DI FORMA ─────────────────────────────────────────── */
+
+  .field {
+    width: 100%;
+    padding: var(--s3);
+    background: var(--pitch-800);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    color: var(--chalk);
+    font-family: var(--sans);
+    font-size: var(--t-sm);
+    min-height: 44px;
+    transition: border-color var(--base);
+  }
+  .field:focus { outline: none; border-color: var(--signal); }
+  .field::placeholder { color: var(--chalk-faint); }
+
+  /* La select di sistema non e' stilabile: disegno io la freccia. */
+  select.field {
+    appearance: none;
+    -webkit-appearance: none;
+    background-image:
+      linear-gradient(45deg, transparent 50%, var(--chalk-faint) 50%),
+      linear-gradient(135deg, var(--chalk-faint) 50%, transparent 50%);
+    background-position: calc(100% - 16px) 19px, calc(100% - 11px) 19px;
+    background-size: 5px 5px, 5px 5px;
+    background-repeat: no-repeat;
+    padding-right: var(--s8);
+  }
+  /* Il menu' a tendina lo disegna il sistema: va forzato o su Windows
+     si apre bianco su bianco. */
+  select.field option { background: var(--pitch-800); color: var(--chalk); }
+
+  textarea.field {
+    min-height: 130px;
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    resize: vertical;
+  }
+
+  label.lbl {
+    display: block;
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--chalk-faint);
+    margin-bottom: var(--s2);
+  }
+
+
+/* ─── 09 · BOTTONI ────────────────────────────────────────────────────
+   Un solo .btn pieno per pannello: se due bottoni sono gialli, nessuno
+   dei due e' l'azione principale.
+   ─────────────────────────────────────────────────────────────────────── */
+
+  .btn {
+    padding: var(--s3) var(--s5);
+    background: var(--signal);
+    color: var(--pitch-950);
+    border: none;
+    border-radius: var(--r-md);
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    font-weight: 700;
+    cursor: pointer;
+    min-height: 46px;
+    transition: filter var(--base), transform 0.1s;
+  }
+  .btn:hover { filter: brightness(1.12); }
+  .btn:active { transform: translateY(1px); }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--chalk-dim);
+    border: 1px solid var(--line-strong);
+  }
+  .btn-ghost:hover {
+    color: var(--chalk);
+    border-color: var(--chalk-faint);
+    filter: none;
+  }
+
+  .btn-full { width: 100%; }
+  .btn-sm { padding: var(--s2) var(--s3); min-height: 34px; font-size: var(--t-micro); }
+
+
+/* ─── 10 · TAG E PASTIGLIE ────────────────────────────────────────────
+   I tag pieni si usano per le fasce dei giocatori.
+   Le pastiglie di ruolo sono quadrate: si distinguono a colpo d'occhio.
+   ─────────────────────────────────────────────────────────────────────── */
+
+  .tag {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--s1);
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    font-weight: 700;
+    padding: 3px var(--s2);
+    border-radius: var(--r-sm);
+    white-space: nowrap;
+  }
+  .tag-signal { background: var(--signal); color: var(--pitch-950); }
+  .tag-grass  { background: rgba(74, 222, 128, 0.16); color: var(--grass); border: 1px solid rgba(74, 222, 128, 0.30); }
+  .tag-sky    { background: rgba(91, 200, 232, 0.14); color: var(--sky);   border: 1px solid rgba(91, 200, 232, 0.28); }
+  .tag-coral  { background: rgba(255, 92, 77, 0.14);  color: var(--coral); border: 1px solid rgba(255, 92, 77, 0.30); }
+  .tag-ghost  { background: rgba(241, 245, 238, 0.06); color: var(--chalk-dim); border: 1px solid var(--line-strong); }
+
+  /* Pastiglia di ruolo: P / D / C / A. Un colore per ruolo, costante in
+     tutta l'applicazione — l'utente lo impara in trenta secondi e poi
+     legge la rosa a colpo d'occhio. Non cambiare gli accoppiamenti. */
+  .role {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: var(--r-sm);
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    font-weight: 800;
+    flex-shrink: 0;
+  }
+  .role-P { background: rgba(245, 211, 10, 0.18); color: var(--signal); }
+  .role-D { background: rgba(91, 200, 232, 0.16); color: var(--sky); }
+  .role-C { background: rgba(74, 222, 128, 0.16); color: var(--grass); }
+  .role-A { background: rgba(255, 92, 77, 0.16);  color: var(--coral); }
+
+  /* Stemma di squadra: sigla su fondo del colore sociale, che arriva dai
+     dati. E' l'unico caso di style inline ammesso. */
+  .crest {
+    width: 30px;
+    height: 30px;
+    border-radius: var(--r-sm);
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 800;
+    color: #fff;
+    letter-spacing: -0.02em;
+  }
+
+
+/* ─── 11 · TABELLE ────────────────────────────────────────────────────
+   Non collassano in schede su mobile: durante un'asta si confrontano
+   righe fra loro, e le schede impilate rendono il confronto impossibile.
+   ─────────────────────────────────────────────────────────────────────── */
+
+  /* I margini negativi fanno scorrere la tabella fino al bordo del
+     pannello. Va sempre dentro un .panel con padding --s5. */
+  .tbl-scroll {
+    overflow-x: auto;
+    margin: 0 calc(var(--s5) * -1);
+    padding: 0 var(--s5);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .tbl-scroll table { width: 100%; border-collapse: collapse; min-width: 660px; }
+
+  .tbl-scroll th {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--chalk-faint);
+    font-weight: 600;
+    text-align: left;
+    padding: var(--s2) var(--s3);
+    border-bottom: 1px solid var(--line-strong);
+    white-space: nowrap;
+  }
+
+  .tbl-scroll td {
+    padding: var(--s3);
+    border-bottom: 1px solid rgba(241, 245, 238, 0.04);
+    font-size: var(--t-sm);
+    vertical-align: middle;
+  }
+
+  .tbl-scroll tbody tr { transition: background var(--fast); }
+  .tbl-scroll tbody tr:hover { background: rgba(241, 245, 238, 0.03); }
+
+  .ctr { text-align: center; }
+  .rgt { text-align: right; }
+
+  /* Cella nome giocatore: nome sopra, squadra sotto in maiuscoletto. */
+  .pname { color: var(--chalk); font-weight: 600; display: block; }
+  .pteam {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    color: var(--chalk-faint);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+
+  /* Il prezzo: sempre giallo, sempre tabulare. */
+  .price {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--t-base);
+    font-weight: 800;
+    color: var(--signal);
+  }
+
+  /* Barra-indicatore dentro una cella: barra + numero. */
+  .meter { display: flex; align-items: center; gap: var(--s2); justify-content: center; }
+  .meter-track {
+    width: 38px;
+    height: 3px;
+    background: rgba(241, 245, 238, 0.1);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .meter-fill { height: 100%; background: var(--chalk-dim); }
+  .meter-val {
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    color: var(--chalk-dim);
+    min-width: 26px;
+    text-align: right;
+  }
+
+  /* Righe etichetta/valore, alternativa alla tabella quando le coppie
+     sono poche. */
+  .facts { list-style: none; }
+  .facts li {
+    display: flex;
+    gap: var(--s3);
+    padding: var(--s2) 0;
+    font-size: var(--t-sm);
+    border-bottom: 1px solid var(--line);
+  }
+  .facts li:last-child { border-bottom: none; }
+  .facts .fk {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--chalk-faint);
+    flex: 0 0 96px;
+    padding-top: 3px;
+  }
+  .facts .fv { color: var(--chalk-dim); }
+  .facts .fv b { color: var(--chalk); }
+
+  /* Elenco con spunte verdi. */
+  .check-list { list-style: none; }
+  .check-list li {
+    display: flex;
+    gap: var(--s2);
+    font-size: var(--t-sm);
+    padding: var(--s1) 0;
+  }
+  .check-list li::before {
+    content: "✓";
+    color: var(--grass);
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .check-list strong { color: var(--chalk); }
+
+
+/* ─── 12 · SALA D'ASTA ────────────────────────────────────────────────── */
+
+  /* Il lotto in corso: pannello con alone giallo nell'angolo. */
+  .lot {
+    background: linear-gradient(160deg, var(--pitch-800), var(--pitch-900));
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-lg);
+    padding: var(--s6);
+    position: relative;
+    overflow: hidden;
+  }
+  .lot::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: 180px;
+    height: 180px;
+    background: radial-gradient(circle at 100% 0, rgba(245, 211, 10, 0.14), transparent 68%);
+    pointer-events: none;
+  }
+
+  .lot-name {
+    font-size: var(--t-2xl);
+    font-weight: 800;
+    color: var(--chalk);
+    letter-spacing: -0.03em;
+    line-height: 1.05;
+  }
+  .lot-meta {
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--chalk-faint);
+    margin-top: var(--s2);
+  }
+
+  /* L'offerta corrente: l'elemento piu' grande dell'interfaccia. */
+  .lot-score {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--t-score);
+    font-weight: 800;
+    color: var(--signal);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+  }
+  /* Pulsa a ogni rilancio: conferma visiva che l'offerta e' passata.
+     Per farla ripartire va forzato un reflow, vedi il documento. */
+  .lot-score.bump { animation: bump 0.38s cubic-bezier(0.3, 1.4, 0.5, 1); }
+
+  /* Cronologia dei rilanci: il piu' recente in cima, evidenziato. */
+  .tick { display: flex; flex-direction: column; gap: 1px; max-height: 180px; overflow-y: auto; }
+  .tick-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--s2) var(--s3);
+    background: rgba(241, 245, 238, 0.03);
+    border-left: 2px solid var(--line-strong);
+    font-size: var(--t-sm);
+  }
+  .tick-row.top { border-left-color: var(--signal); background: rgba(245, 211, 10, 0.06); }
+  .tick-row .who { color: var(--chalk); }
+  .tick-row .amt { font-family: var(--mono); font-weight: 700; color: var(--chalk-dim); }
+  .tick-row.top .amt { color: var(--signal); }
+
+  /* Selettore di squadra che offre. */
+  .bidders { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s2); }
+  .bidder {
+    padding: var(--s3);
+    background: var(--pitch-800);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-md);
+    cursor: pointer;
+    text-align: left;
+    transition: border-color var(--base), background var(--base);
+  }
+  .bidder:hover { border-color: var(--chalk-faint); }
+  .bidder.on { border-color: var(--signal); background: rgba(245, 211, 10, 0.08); }
+  .bidder .bn { color: var(--chalk); font-weight: 600; font-size: var(--t-sm); display: block; }
+  .bidder .bb { font-family: var(--mono); font-size: var(--t-xs); color: var(--chalk-faint); }
+  .bidder.on .bb { color: var(--signal); }
+
+  /* Messaggi effimeri: appaiono per ~3 secondi dopo un'azione. */
+  .notice {
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    padding: var(--s2) var(--s3);
+    border-radius: var(--r-sm);
+    margin-top: var(--s3);
+    display: none;
+  }
+  .notice.show { display: block; }
+  .notice.ok  { background: rgba(74, 222, 128, 0.1); color: var(--grass); }
+  .notice.err { background: rgba(255, 92, 77, 0.1);  color: var(--coral); }
+
+  .step-btns { display: flex; gap: var(--s2); }
+  .step-btns .btn { flex: 1; }
+
+  /* Codice stanza: bordo tratteggiato, come uno strappo di biglietteria. */
+  .room { display: flex; align-items: center; gap: var(--s4); flex-wrap: wrap; }
+  .room-code {
+    font-family: var(--mono);
+    font-size: var(--t-xl);
+    font-weight: 800;
+    letter-spacing: 0.1em;
+    color: var(--signal);
+    background: var(--pitch-950);
+    padding: var(--s3) var(--s4);
+    border: 1px dashed rgba(245, 211, 10, 0.4);
+    border-radius: var(--r-md);
+  }
+
+
+/* ─── 13 · IL CAMPO ───────────────────────────────────────────────────
+   L'elemento firma dell'applicazione: i 25 slot della rosa disposti come
+   una formazione, su un campo disegnato a gesso. Attacco in alto, porta
+   in basso — come guardando la partita da dietro la propria porta.
+   ─────────────────────────────────────────────────────────────────────── */
+
+  .pitch {
+    position: relative;
+    background: linear-gradient(180deg, #0c2419, #081a13);
+    border: 1px solid var(--line-strong);
+    border-radius: var(--r-lg);
+    padding: var(--s6) var(--s4);
+    overflow: hidden;
+  }
+  /* Perimetro */
+  .pitch::before {
+    content: "";
+    position: absolute;
+    inset: var(--s3);
+    border: 1px solid rgba(241, 245, 238, 0.13);
+    border-radius: var(--r-sm);
+    pointer-events: none;
+  }
+  /* Cerchio di centrocampo */
+  .pitch::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 112px;
+    height: 112px;
+    transform: translate(-50%, -50%);
+    border: 1px solid rgba(241, 245, 238, 0.1);
+    border-radius: 50%;
+    pointer-events: none;
+  }
+  /* Linea di meta' campo — elemento vero: gli pseudo sono esauriti.
+     Se aggiungi altre linee servono altri elementi. */
+  .pitch-line {
+    position: absolute;
+    left: var(--s3);
+    right: var(--s3);
+    top: 50%;
+    height: 1px;
+    background: rgba(241, 245, 238, 0.1);
+    pointer-events: none;
+  }
+  .pitch-inner {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    gap: var(--s5);
+  }
+
+  /* Un reparto */
+  .line-row { display: flex; flex-direction: column; gap: var(--s2); }
+  .line-tag { display: flex; align-items: center; gap: var(--s2); }
+  .line-tag .lname {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--chalk-faint);
+  }
+  .line-tag .lcount { font-family: var(--mono); font-size: var(--t-micro); color: var(--chalk-dim); }
+
+  /* Gli slot. Vuoto tratteggiato contro pieno continuo: e' la differenza
+     che si legge piu' in fretta, prima ancora del testo. */
+  .slots { display: flex; flex-wrap: wrap; gap: var(--s2); justify-content: center; }
+  .slot {
+    width: 70px;
+    min-height: 62px;
+    border-radius: var(--r-md);
+    border: 1px dashed rgba(241, 245, 238, 0.16);
+    background: rgba(241, 245, 238, 0.02);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 2px;
+    padding: var(--s1);
+    text-align: center;
+  }
+  .slot.filled {
+    border-style: solid;
+    border-color: var(--line-strong);
+    background: var(--pitch-800);
+    cursor: pointer;
+  }
+  /* Rosso in hover: cliccando lo cedi. Il colore anticipa la conseguenza. */
+  .slot.filled:hover { border-color: var(--coral); }
+
+  .slot .sn {
+    font-size: 9px;
+    line-height: 1.15;
+    color: var(--chalk);
+    font-weight: 600;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+  .slot .sp { font-family: var(--mono); font-size: 9px; color: var(--signal); font-weight: 700; }
+  .slot .sx { font-family: var(--mono); font-size: 10px; color: var(--chalk-faint); }
+
+
+/* ─── 14 · ALTERNATIVE ────────────────────────────────────────────────── */
+
+  /* Il giocatore di partenza, in evidenza. */
+  .target {
+    display: flex;
+    align-items: center;
+    gap: var(--s4);
+    padding: var(--s4);
+    background: linear-gradient(120deg, rgba(245, 211, 10, 0.09), transparent 70%);
+    border: 1px solid rgba(245, 211, 10, 0.28);
+    border-radius: var(--r-md);
+  }
+  .target .tn {
+    font-size: var(--t-xl);
+    font-weight: 800;
+    color: var(--chalk);
+    letter-spacing: -0.025em;
+    line-height: 1.1;
+  }
+  .target .tp { margin-left: auto; text-align: right; flex-shrink: 0; }
+
+  /* Una riga di alternativa: nome e motivi a sinistra, risparmio a destra. */
+  .alt {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: var(--s3);
+    align-items: center;
+    padding: var(--s3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--pitch-800);
+    transition: border-color var(--base);
+  }
+  .alt:hover { border-color: var(--chalk-faint); }
+  .alt + .alt { margin-top: var(--s2); }
+
+  .alt-save {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-weight: 800;
+    font-size: var(--t-lg);
+    color: var(--grass);
+    line-height: 1;
+  }
+  .alt-save.neg { color: var(--coral); }
+
+  .alt-why { font-size: var(--t-xs); color: var(--chalk-faint); margin-top: 3px; line-height: 1.45; }
+  .alt-rank {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    color: var(--chalk-faint);
+    letter-spacing: 0.14em;
+    margin-right: var(--s2);
+  }
+
+
+/* ─── 15 · SCOUTING ───────────────────────────────────────────────────── */
+
+  .tier-head {
+    display: flex;
+    align-items: baseline;
+    gap: var(--s3);
+    margin-bottom: var(--s3);
+    padding-bottom: var(--s2);
+    border-bottom: 1px solid var(--line);
+  }
+  .tier-head .td { font-size: var(--t-xs); color: var(--chalk-faint); flex: 1; }
+
+  .scards { display: grid; gap: var(--s2); grid-template-columns: repeat(auto-fill, minmax(196px, 1fr)); }
+  .scard {
+    padding: var(--s3);
+    background: var(--pitch-800);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s2);
+  }
+  .scard-top { display: flex; justify-content: space-between; align-items: flex-start; gap: var(--s2); }
+  .scard .sname { color: var(--chalk); font-weight: 600; font-size: var(--t-sm); line-height: 1.2; }
+  .scard .steam {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--chalk-faint);
+    display: block;
+    margin-top: 2px;
+  }
+  .scard .sfoot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: var(--s2);
+    border-top: 1px solid var(--line);
+  }
+  .scard .sval { font-family: var(--mono); font-size: var(--t-xs); color: var(--chalk-dim); }
+
+  /* Riga con barra: occasioni e rischio fisico. Il colore della barra lo
+     imposta il JS in base alla soglia. */
+  .risk-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s3) 0;
+    border-bottom: 1px solid var(--line);
+  }
+  .risk-row:last-child { border-bottom: none; }
+  .risk-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(241, 245, 238, 0.08);
+    border-radius: 2px;
+    overflow: hidden;
+    min-width: 60px;
+  }
+  .risk-fill { height: 100%; }
+  .risk-num {
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    color: var(--chalk-dim);
+    min-width: 34px;
+    text-align: right;
+  }
+
+
+/* ─── 16 · PROIEZIONE ─────────────────────────────────────────────────── */
+
+  .proj { text-align: center; padding: var(--s5) var(--s4); }
+  .proj .pv {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--t-score);
+    font-weight: 800;
+    color: var(--signal);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+  }
+  .proj .pl {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--chalk-faint);
+    margin-top: var(--s2);
+  }
+
+  /* La formazione schierata. */
+  .xi { display: flex; flex-direction: column; gap: 1px; margin-top: var(--s4); }
+  .xi-row {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s2) var(--s3);
+    background: rgba(241, 245, 238, 0.03);
+    font-size: var(--t-sm);
+  }
+  .xi-row .xn { color: var(--chalk); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .xi-row .xf {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--chalk-dim);
+    font-variant-numeric: tabular-nums;
+  }
+  .xi-gap { color: var(--coral); font-style: italic; }
+
+
+/* ─── 17 · SCAMBI ─────────────────────────────────────────────────────── */
+
+  /* Due rose affiancate con la freccia in mezzo. Su mobile una sotto
+     l'altra. */
+  .trade-cols { display: grid; gap: var(--s4); grid-template-columns: 1fr; }
+  @media (min-width: 820px) {
+    .trade-cols { grid-template-columns: 1fr auto 1fr; align-items: start; }
+  }
+  .trade-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    color: var(--chalk-faint);
+    padding: var(--s4) 0;
+  }
+  @media (min-width: 820px) {
+    .trade-arrow { padding-top: var(--s10); }
+  }
+
+  /* Riga selezionabile: casella, ruolo, nome, prezzo pagato. */
+  .pick {
+    display: flex;
+    align-items: center;
+    gap: var(--s3);
+    padding: var(--s2) var(--s3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--pitch-800);
+    cursor: pointer;
+    transition: border-color var(--base), background var(--base);
+    margin-bottom: var(--s2);
+    width: 100%;
+    text-align: left;
+  }
+  .pick:hover { border-color: var(--chalk-faint); }
+  .pick.on { border-color: var(--signal); background: rgba(245, 211, 10, 0.09); }
+  .pick .pk-name {
+    color: var(--chalk);
+    font-weight: 600;
+    font-size: var(--t-sm);
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .pick .pk-price { font-family: var(--mono); font-weight: 700; color: var(--chalk-dim); font-size: var(--t-sm); }
+  .pick.on .pk-price { color: var(--signal); }
+  .pick .pk-box {
+    width: 16px;
+    height: 16px;
+    border-radius: 3px;
+    border: 1px solid var(--line-strong);
+    flex-shrink: 0;
+  }
+  .pick.on .pk-box { background: var(--signal); border-color: var(--signal); }
+
+  /* Il verdetto sullo scambio: quattro stati cromatici. Il colore non e'
+     mai l'unica informazione — la parola c'e' sempre. */
+  .verdict { padding: var(--s5); border-radius: var(--r-md); text-align: center; }
+  .verdict.buono   { background: rgba(74, 222, 128, 0.1); border: 1px solid rgba(74, 222, 128, 0.35); }
+  .verdict.equo    { background: rgba(91, 200, 232, 0.09); border: 1px solid rgba(91, 200, 232, 0.30); }
+  .verdict.cattivo { background: rgba(255, 92, 77, 0.1);  border: 1px solid rgba(255, 92, 77, 0.35); }
+  .verdict.vuoto   { background: rgba(241, 245, 238, 0.03); border: 1px dashed var(--line-strong); }
+
+  .verdict .vd {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+  .verdict.buono   .vd { color: var(--grass); }
+  .verdict.equo    .vd { color: var(--sky); }
+  .verdict.cattivo .vd { color: var(--coral); }
+  .verdict.vuoto   .vd { color: var(--chalk-faint); }
+
+  .verdict .vnums { display: flex; justify-content: center; gap: var(--s8); margin: var(--s4) 0; }
+  .verdict .vn {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    font-size: var(--t-2xl);
+    font-weight: 800;
+    line-height: 1;
+  }
+  .verdict .vl {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--chalk-faint);
+    margin-top: var(--s1);
+  }
+
+  /* Segno del valore: verde guadagni, rosso perdi, grigio pari. */
+  .pos { color: var(--grass); }
+  .neg { color: var(--coral); }
+  .neu { color: var(--chalk-dim); }
+
+  /* Storico degli scambi conclusi. */
+  .hist { display: flex; flex-direction: column; gap: var(--s2); }
+  .hist-row {
+    padding: var(--s3);
+    border: 1px solid var(--line);
+    border-radius: var(--r-md);
+    background: var(--pitch-800);
+    font-size: var(--t-sm);
+  }
+  .hist-row .hh {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: var(--s2);
+    gap: var(--s2);
+  }
+  .hist-row .ht {
+    font-family: var(--mono);
+    font-size: var(--t-micro);
+    color: var(--chalk-faint);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+  }
+  .hist-side { color: var(--chalk-dim); font-size: var(--t-xs); line-height: 1.6; }
+  .hist-side b { color: var(--chalk); }
+
+
+/* ─── 18 · SQUADRE E STAGIONE ─────────────────────────────────────────── */
+
+  .trow { display: flex; align-items: center; gap: var(--s3); }
+  .t-name { color: var(--chalk); font-weight: 600; }
+  .t-sub { font-size: var(--t-xs); color: var(--chalk-faint); }
+
+  /* Modulo tattico: monospaziato e giallo, si legge come un codice. */
+  .mod { font-family: var(--mono); font-weight: 700; color: var(--signal); font-size: var(--t-sm); }
+
+  /* Linea del tempo della stagione. */
+  .tl { list-style: none; position: relative; padding-left: var(--s6); }
+  .tl::before {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 6px;
+    bottom: 6px;
+    width: 1px;
+    background: var(--line-strong);
+  }
+  .tl li { position: relative; padding-bottom: var(--s5); }
+  .tl li::before {
+    content: "";
+    position: absolute;
+    left: calc(var(--s6) * -1 + 2px);
+    top: 7px;
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--chalk-faint);
+  }
+  /* Le date che contano hanno il pallino giallo con l'alone. */
+  .tl li.key::before {
+    background: var(--signal);
+    box-shadow: 0 0 0 3px rgba(245, 211, 10, 0.18);
+  }
+  .tl .when {
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--chalk);
+    font-weight: 700;
+    display: block;
+  }
+  .tl .what { font-size: var(--t-sm); color: var(--chalk-dim); }
+
+
+/* ─── 19 · UTILITA' ───────────────────────────────────────────────────
+   Poche e solo di spaziatura verticale. Tutto il resto e' nei componenti.
+   ─────────────────────────────────────────────────────────────────────── */
+
+  .mt2 { margin-top: var(--s2); }
+  .mt3 { margin-top: var(--s3); }
+  .mt4 { margin-top: var(--s4); }
+  .mt6 { margin-top: var(--s6); }
+  .mt8 { margin-top: var(--s8); }
+  .mb2 { margin-bottom: var(--s2); }
+  .mb3 { margin-bottom: var(--s3); }
+  .mb4 { margin-bottom: var(--s4); }
+  .mb6 { margin-bottom: var(--s6); }
+  .mb8 { margin-bottom: var(--s8); }
+
+
+/* ─── 20 · STATI ──────────────────────────────────────────────────────── */
+
+  /* Stato vuoto: ogni lista ne ha bisogno. Scrivi cosa fare, non solo
+     cosa manca. */
+  .empty {
+    text-align: center;
+    padding: var(--s10) var(--s4);
+    color: var(--chalk-faint);
+    font-size: var(--t-sm);
+  }
+
+  /* Scrollbar delle aree scorrevoli. */
+  .tick::-webkit-scrollbar { width: 6px; }
+  .tick::-webkit-scrollbar-track { background: rgba(241, 245, 238, 0.04); }
+  .tick::-webkit-scrollbar-thumb { background: rgba(241, 245, 238, 0.18); border-radius: 3px; }
+
+  /* Retaggio del foglio precedente: stessi nomi, stesso comportamento. */
+  .battito { animation: bump 0.38s cubic-bezier(0.3, 1.4, 0.5, 1); }
+  .barra-offerta { transition: width 0.26s cubic-bezier(0.2, 0.9, 0.3, 1); }
+
+  code {
+    font-family: var(--mono);
+    font-size: var(--t-xs);
+    background: rgba(241, 245, 238, 0.06);
+    padding: 2px 5px;
+    border-radius: var(--r-sm);
+    color: var(--signal);
+  }
+}
+
+
+/* ─── ANIMAZIONI ──────────────────────────────────────────────────────── */
+
+@keyframes rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes bump {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.09); }
+  100% { transform: scale(1); }
+}
+
+
+/* ─── ACCESSIBILITA' ──────────────────────────────────────────────────
+   Anello di focus giallo, visibile solo da tastiera. Fuori dai layer:
+   deve battere qualunque utility di outline.
+   ─────────────────────────────────────────────────────────────────────── */
+
+:focus-visible {
+  outline: 2px solid var(--signal);
+  outline-offset: 2px;
+}
+
+/* Chi ha chiesto meno animazioni non le riceve. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Stampa: fondo bianco, testo nero, via i cromi. */
+@media print {
+  body { background: #fff; color: #000; background-image: none; }
+  .board, .board nav, .btn, .btn-ghost { display: none; }
+  .panel { border-color: #ccc; background: #fff; page-break-inside: avoid; }
+  h1, h2, h3, h4, .pname, .t-name { color: #000; }
+  .price, .num { color: #000; }
+}
